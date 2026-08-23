@@ -235,9 +235,14 @@
 
 <header>
   <h1>Chief of Staff</h1>
-  <div class="conn-status" id="connStatus">
-    <span class="conn-dot"></span>
-    <span id="connLabel">Checking…</span>
+  <div style="display:flex; align-items:center; gap:10px;">
+    <button class="conn-status" id="restartBtn" title="Start a fresh conversation">
+      <span id="restartLabel">Restart</span>
+    </button>
+    <div class="conn-status" id="connStatus">
+      <span class="conn-dot"></span>
+      <span id="connLabel">Checking…</span>
+    </div>
   </div>
 </header>
 
@@ -531,6 +536,20 @@
     // Deliberately not saved into `messages`/localStorage — this is a fresh
     // glance each time you open to an empty chat, not part of the thread.
   }
+
+  // ---------- Restart (start a fresh conversation) ----------
+  // Also the recovery path if a conversation ever gets stuck in a broken
+  // state client-side (e.g. after an error mid-confirmation).
+  document.getElementById('restartBtn').addEventListener('click', () => {
+    if (!confirm('Start a fresh conversation? This clears the chat on this device.')) return;
+    messages = [];
+    saveMessages();
+    chatLog.innerHTML = '';
+    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+    if (typingRow) { typingRow.remove(); typingRow = null; }
+    if (connected) sendProactiveGreeting();
+    else addBubble('agent', STATIC_GREETING);
+  });
 
   // ---------- Init ----------
   if ('serviceWorker' in navigator) {
