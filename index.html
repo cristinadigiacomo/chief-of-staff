@@ -320,9 +320,20 @@
     const voices = window.speechSynthesis.getVoices();
     if (!voices.length) return null;
     const preferredNames = ['daniel', 'arthur', 'oliver', 'ryan', 'uk english male', 'google uk english male'];
-    const byName = voices.find(v => preferredNames.some(n => v.name.toLowerCase().includes(n)));
-    if (byName) return byName;
+    const isPreferred = v => preferredNames.some(n => v.name.toLowerCase().includes(n));
+    const isHighQuality = v => /enhanced|premium|neural/i.test(v.name);
+
+    // A downloaded "Enhanced"/"Premium" voice sounds far more natural than
+    // the default compact one iOS ships with — prefer it whenever it exists.
+    const enhancedPreferred = voices.find(v => isPreferred(v) && isHighQuality(v));
+    if (enhancedPreferred) return enhancedPreferred;
+
+    const anyPreferred = voices.find(isPreferred);
+    if (anyPreferred) return anyPreferred;
+
     const gbVoices = voices.filter(v => (v.lang || '').toLowerCase() === 'en-gb');
+    const gbEnhanced = gbVoices.find(isHighQuality);
+    if (gbEnhanced) return gbEnhanced;
     const gbMale = gbVoices.find(v => /male/i.test(v.name) && !/female/i.test(v.name));
     if (gbMale) return gbMale;
     if (gbVoices.length) return gbVoices[0];
