@@ -482,10 +482,21 @@
   }
 
   // ---------- Voice output toggle ----------
+  // iOS is stricter about audio autoplay in an installed home-screen app than
+  // in a regular Safari tab — a spoken reply that starts playing seconds
+  // after the tap (waiting on Chip's response) can get silently blocked.
+  // Priming a tiny silent clip HERE, synchronously inside the tap itself,
+  // unlocks audio playback for the rest of the session.
+  const SILENT_CLIP = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
   document.getElementById('voiceOutBtn').addEventListener('click', () => {
     voiceOutEnabled = !voiceOutEnabled;
     document.getElementById('voiceOutBtn').classList.toggle('active', voiceOutEnabled);
-    if (!voiceOutEnabled && currentAudio) { currentAudio.pause(); currentAudio = null; }
+    if (voiceOutEnabled) {
+      new Audio(SILENT_CLIP).play().catch(() => {});
+    } else if (currentAudio) {
+      currentAudio.pause();
+      currentAudio = null;
+    }
   });
 
   // ---------- Proactive opening check-in ----------
