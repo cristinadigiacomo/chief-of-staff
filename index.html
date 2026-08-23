@@ -487,6 +487,9 @@
   }
   renderHistory();
   checkStatus();
+  if (messages.length === 0) {
+    addBubble('agent', "Hey, I'm Chip — your Chief of Staff. Ask me to add, update, or look up anything across your apps, Gmail, Calendar, or Drive.");
+  }
 </script>
 </body>
 </html>
