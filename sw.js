@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chief-of-staff-v1';
+const CACHE_NAME = 'chief-of-staff-v2';
 const SHELL_FILES = [
   './',
   './index.html',
