@@ -311,53 +311,26 @@
     if (typingRow) { typingRow.remove(); typingRow = null; }
   }
 
-  // Prefer a British male voice for Chip. Which voices exist depends on the
-  // device/browser, so this picks the best match it can find and otherwise
-  // just falls back to whatever default voice the device has.
-  let cachedBritishVoice = null;
-  let voicesReady = false;
-  function pickBritishMaleVoice() {
-    const voices = window.speechSynthesis.getVoices();
-    if (!voices.length) return null;
-    const preferredNames = ['daniel', 'arthur', 'oliver', 'ryan', 'uk english male', 'google uk english male'];
-    const isPreferred = v => preferredNames.some(n => v.name.toLowerCase().includes(n));
-    const isHighQuality = v => /enhanced|premium|neural/i.test(v.name);
-
-    // A downloaded "Enhanced"/"Premium" voice sounds far more natural than
-    // the default compact one iOS ships with — prefer it whenever it exists.
-    const enhancedPreferred = voices.find(v => isPreferred(v) && isHighQuality(v));
-    if (enhancedPreferred) return enhancedPreferred;
-
-    const anyPreferred = voices.find(isPreferred);
-    if (anyPreferred) return anyPreferred;
-
-    const gbVoices = voices.filter(v => (v.lang || '').toLowerCase() === 'en-gb');
-    const gbEnhanced = gbVoices.find(isHighQuality);
-    if (gbEnhanced) return gbEnhanced;
-    const gbMale = gbVoices.find(v => /male/i.test(v.name) && !/female/i.test(v.name));
-    if (gbMale) return gbMale;
-    if (gbVoices.length) return gbVoices[0];
-    return null;
-  }
-  if ('speechSynthesis' in window) {
-    window.speechSynthesis.onvoiceschanged = () => {
-      cachedBritishVoice = pickBritishMaleVoice();
-      voicesReady = true;
-    };
-    cachedBritishVoice = pickBritishMaleVoice();
-  }
-
-  function speak(text) {
-    if (!voiceOutEnabled || !('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.rate = 1.02;
-    if (!voicesReady) cachedBritishVoice = pickBritishMaleVoice();
-    if (cachedBritishVoice) {
-      utter.voice = cachedBritishVoice;
-      utter.lang = cachedBritishVoice.lang;
+  // Real speech via the Worker's OpenAI-backed /speak endpoint (the "onyx"
+  // voice) instead of the phone's built-in, robotic-sounding system voice.
+  let currentAudio = null;
+  async function speak(text) {
+    if (!voiceOutEnabled || !text) return;
+    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+    try {
+      const resp = await fetch(WORKER_URL + '/speak', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      });
+      if (!resp.ok) return;
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      currentAudio = new Audio(url);
+      currentAudio.play();
+    } catch (e) {
+      // Voice output is a nice-to-have — a failure here shouldn't interrupt the chat.
     }
-    window.speechSynthesis.speak(utter);
   }
 
   // ---------- Connection status ----------
@@ -519,7 +492,7 @@
   document.getElementById('voiceOutBtn').addEventListener('click', () => {
     voiceOutEnabled = !voiceOutEnabled;
     document.getElementById('voiceOutBtn').classList.toggle('active', voiceOutEnabled);
-    if (!voiceOutEnabled) window.speechSynthesis.cancel();
+    if (!voiceOutEnabled && currentAudio) { currentAudio.pause(); currentAudio = null; }
   });
 
   // ---------- Proactive opening check-in ----------
