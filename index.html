@@ -188,33 +188,35 @@
   #inputBar {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 12px 14px;
-    border-top: 1px solid var(--border);
+    gap: 10px;
+    padding: 16px 14px calc(20px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--border-light);
     flex-shrink: 0;
-    background: var(--bg);
+    background: var(--surface);
   }
   #textInput {
     flex: 1;
-    background: var(--surface-raised);
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 12px 14px;
-    font-size: 16px;
-    border-radius: 20px;
+    background: #ffffff;
+    border: 1px solid var(--border-light);
+    color: #12141c;
+    padding: 15px 18px;
+    font-size: 17px;
+    border-radius: 24px;
     outline: none;
     font-family: var(--font-body);
+    min-width: 0;
   }
-  #textInput:focus { border-color: var(--mint-dim); }
+  #textInput::placeholder { color: #6b6b6b; }
+  #textInput:focus { border-color: var(--mint); }
 
   .icon-btn {
-    width: 42px;
-    height: 42px;
+    width: 54px;
+    height: 54px;
     border-radius: 50%;
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-light);
     background: var(--surface-raised);
     color: var(--text-faint);
-    font-size: 18px;
+    font-size: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -224,7 +226,7 @@
   .icon-btn.active { background: var(--mint-dim); border-color: var(--mint); color: var(--mint); }
   .icon-btn.recording { background: var(--rose); border-color: var(--rose); color: #fff; animation: rec-pulse 1s ease-in-out infinite; }
   @keyframes rec-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
-  .icon-btn.send { background: var(--mint); border-color: var(--mint); color: #0a1a13; }
+  .icon-btn.send { background: var(--mint); border-color: var(--mint); color: #0a1a13; font-size: 22px; }
 </style>
 </head>
 <body>
