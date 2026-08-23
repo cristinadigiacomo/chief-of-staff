@@ -311,11 +311,41 @@
     if (typingRow) { typingRow.remove(); typingRow = null; }
   }
 
+  // Prefer a British male voice for Chip. Which voices exist depends on the
+  // device/browser, so this picks the best match it can find and otherwise
+  // just falls back to whatever default voice the device has.
+  let cachedBritishVoice = null;
+  let voicesReady = false;
+  function pickBritishMaleVoice() {
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices.length) return null;
+    const preferredNames = ['daniel', 'arthur', 'oliver', 'ryan', 'uk english male', 'google uk english male'];
+    const byName = voices.find(v => preferredNames.some(n => v.name.toLowerCase().includes(n)));
+    if (byName) return byName;
+    const gbVoices = voices.filter(v => (v.lang || '').toLowerCase() === 'en-gb');
+    const gbMale = gbVoices.find(v => /male/i.test(v.name) && !/female/i.test(v.name));
+    if (gbMale) return gbMale;
+    if (gbVoices.length) return gbVoices[0];
+    return null;
+  }
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.onvoiceschanged = () => {
+      cachedBritishVoice = pickBritishMaleVoice();
+      voicesReady = true;
+    };
+    cachedBritishVoice = pickBritishMaleVoice();
+  }
+
   function speak(text) {
     if (!voiceOutEnabled || !('speechSynthesis' in window)) return;
     window.speechSynthesis.cancel();
     const utter = new SpeechSynthesisUtterance(text);
     utter.rate = 1.02;
+    if (!voicesReady) cachedBritishVoice = pickBritishMaleVoice();
+    if (cachedBritishVoice) {
+      utter.voice = cachedBritishVoice;
+      utter.lang = cachedBritishVoice.lang;
+    }
     window.speechSynthesis.speak(utter);
   }
 
@@ -481,15 +511,47 @@
     if (!voiceOutEnabled) window.speechSynthesis.cancel();
   });
 
+  // ---------- Proactive opening check-in ----------
+  const STATIC_GREETING = "Hey, I'm Chip — your Chief of Staff. Ask me to add, update, or look up anything across your apps, Gmail, Calendar, or Drive.";
+
+  async function sendProactiveGreeting() {
+    if (!connected) { addBubble('agent', STATIC_GREETING); return; }
+    showTyping('Checking in…');
+    try {
+      const resp = await fetch(WORKER_URL + '/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [{
+            role: 'user',
+            content: 'Give me a quick opening check-in — glance at Network Cadence for anyone overdue, then say hello. Keep it short and natural, and only mention Cadence if something is actually overdue.'
+          }]
+        })
+      });
+      const data = await resp.json();
+      hideTyping();
+      if (data.done && data.text) {
+        addBubble('agent', data.text);
+        speak(data.text);
+      } else {
+        addBubble('agent', STATIC_GREETING);
+      }
+    } catch (e) {
+      hideTyping();
+      addBubble('agent', STATIC_GREETING);
+    }
+    // Deliberately not saved into `messages`/localStorage — this is a fresh
+    // glance each time you open to an empty chat, not part of the thread.
+  }
+
   // ---------- Init ----------
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
   }
   renderHistory();
-  checkStatus();
-  if (messages.length === 0) {
-    addBubble('agent', "Hey, I'm Chip — your Chief of Staff. Ask me to add, update, or look up anything across your apps, Gmail, Calendar, or Drive.");
-  }
+  checkStatus().then(() => {
+    if (messages.length === 0) sendProactiveGreeting();
+  });
 </script>
 </body>
 </html>
