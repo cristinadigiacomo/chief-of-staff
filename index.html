@@ -313,23 +313,16 @@
 
   // Real speech via the Worker's OpenAI-backed /speak endpoint (the "onyx"
   // voice) instead of the phone's built-in, robotic-sounding system voice.
+  // Streamed via a GET src (not fetch+blob) so playback can start on the
+  // first chunk instead of waiting for the whole clip to download.
   let currentAudio = null;
-  async function speak(text) {
+  function speak(text) {
     if (!voiceOutEnabled || !text) return;
     if (currentAudio) { currentAudio.pause(); currentAudio = null; }
-    try {
-      const resp = await fetch(WORKER_URL + '/speak', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text })
-      });
-      if (!resp.ok) return;
-      const blob = await resp.blob();
-      const url = URL.createObjectURL(blob);
-      currentAudio = new Audio(url);
-      currentAudio.play();
-    } catch (e) {
-      // Voice output is a nice-to-have — a failure here shouldn't interrupt the chat.
+    currentAudio = new Audio(WORKER_URL + '/speak?text=' + encodeURIComponent(text));
+    const playPromise = currentAudio.play();
+    if (playPromise && playPromise.catch) {
+      playPromise.catch(err => console.error('Voice playback blocked or failed:', err));
     }
   }
 
